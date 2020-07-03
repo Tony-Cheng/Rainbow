@@ -11,7 +11,7 @@ import numpy as np
 import torch
 from tqdm import trange
 
-from agent import Agent
+from agent import Agent, EnsembleAgent
 from env import Env
 from memory import ReplayMemory
 from test import test
@@ -56,6 +56,9 @@ parser.add_argument('--enable-cudnn', action='store_true', help='Enable cuDNN (f
 parser.add_argument('--checkpoint-interval', default=0, help='How often to checkpoint the model, defaults to 0 (never checkpoint)')
 parser.add_argument('--memory', help='Path to save/load the memory from')
 parser.add_argument('--disable-bzip-memory', action='store_true', help='Don\'t zip the memory file. Not recommended (zipping is a bit slower and much, much smaller)')
+parser.add_argument('--use-ensemble', type=bool, default=False, help='Whether or not to use ensemble')
+parser.add_argument('--ens_size', type=int, default=5, help='Ensemble size')
+
 
 # Setup
 args = parser.parse_args()
@@ -106,7 +109,10 @@ env.train()
 action_space = env.action_space()
 
 # Agent
-dqn = Agent(args, env)
+if args.use_ensemble:
+  dqn = EnsembleAgent(args, env)
+else:
+  dqn = Agent(args, env)
 
 # If a model is provided, and evaluate is fale, presumably we want to resume, so try to load memory
 if args.model is not None and not args.evaluate:
