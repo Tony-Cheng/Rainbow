@@ -101,6 +101,7 @@ class DQN_ENS(nn.Module):
     def __init__(self, args, action_space):
         super(DQN_ENS, self).__init__()
         self.ens_size = args.ens_size
+
         self.models = nn.ModuleList(
             [DQN(args, action_space) for _ in range(self.ens_size)])
 
@@ -111,7 +112,7 @@ class DQN_ENS(nn.Module):
         return qs / self.ens_size
 
     def forward_member(self, index, x, log=False):
-        return self.models[i](x, log=log)
+        return self.models[index](x, log=log)
 
     def get_ens_size(self):
         return self.ens_size

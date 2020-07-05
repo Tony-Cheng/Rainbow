@@ -1,0 +1,14 @@
+python ../main.py --target-update 2000 \
+                  --T-max 10000000 \
+                  --learn-start 1600 \
+                  --memory-capacity 100000 \
+                  --replay-frequency 1 \
+                  --multi-step 20 \
+                  --hidden-size 256 \
+                  --learning-rate 0.0001 \
+                  --evaluation-interval 10000 \
+                  --use-ensemble True \
+                  --use_BALD True \
+                  --ens_size 5 \
+                  --game enduro \
+                  --id ensemble_rainbow_enduro_BALD

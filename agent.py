@@ -5,6 +5,7 @@ import numpy as np
 import torch
 from torch import optim
 from torch.nn.utils import clip_grad_norm_
+from torch.nn import functional as F
 
 from model import DQN, DQN_ENS
 
@@ -142,6 +143,30 @@ class Agent():
         self.online_net.eval()
 
 
+def ens_entropy(qs):
+    prob = 0
+    for i in range(len(qs)):
+        q = qs[i]
+        prob += F.softmax(q, dim=1)
+    prob /= len(qs)
+    entropy = - torch.sum(prob * torch.log(prob + 1e-7), dim=1)
+    return entropy
+
+
+def ens_cond_entropy(qs):
+    cond_entropy = 0
+    for i in range(len(qs)):
+        q = qs[i]
+        prob = F.softmax(q, dim=1)
+        cond_entropy += torch.sum(prob * torch.log(prob + 1e-7), dim=1)
+    cond_entropy /= len(qs)
+    return cond_entropy
+
+
+def ens_BALD(qs):
+    return ens_entropy(qs) + ens_cond_entropy(qs)
+
+
 class EnsembleAgent(Agent):
     def __init__(self, args, env):
         self.action_space = env.action_space()
@@ -155,7 +180,7 @@ class EnsembleAgent(Agent):
         self.n = args.multi_step
         self.discount = args.discount
         self.norm_clip = args.norm_clip
-        
+
         self.online_net = DQN_ENS(
             args, self.action_space).to(device=args.device)
         if args.model:  # Load pretrained model if provided
@@ -185,10 +210,7 @@ class EnsembleAgent(Agent):
         self.optimiser = optim.Adam(
             self.online_net.parameters(), lr=args.learning_rate, eps=args.adam_eps)
 
-        if 'use_BALD' not in args:
-            self.use_BALD = False
-        else:
-            self.use_BALD = args.use_BALD
+        self.use_BALD = args.use_BALD
 
     def learn(self, mem):
         samples = mem.sample(self.batch_size)
@@ -199,7 +221,7 @@ class EnsembleAgent(Agent):
         for i in range(self.online_net.get_ens_size()):
             loss += self.loss_member(samples, self.online_net.get_model(i),
                                      self.target_net.get_model(i))
-        
+
         self.online_net.zero_grad()
         # Backpropagate importance-weighted minibatch loss
         (weights * loss).mean().backward()
@@ -209,10 +231,13 @@ class EnsembleAgent(Agent):
 
         # Update priorities of sampled transitions
         if self.use_BALD:
-            raise NotImplementedError
+            with torch.no_grad():
+                qs = [self.q_value_batch(states, self.online_net.get_model(
+                    i)) for i in range(self.online_net.get_ens_size())]
+            BALD_value = torch.abs(ens_BALD(qs) + 1)
+            mem.update_priorities(idxs, BALD_value.detach().cpu().numpy())
         else:
             mem.update_priorities(idxs, loss.detach().cpu().numpy())
-
 
     def loss_member(self, samples, online_net, target_net):
         # Sample transitions
@@ -264,6 +289,11 @@ class EnsembleAgent(Agent):
         loss = -torch.sum(m * log_ps_a, 1)
 
         return loss
+
+    def q_value_batch(self, states, online_net):
+        with torch.no_grad():
+            qs = online_net(states)
+            return (qs * self.support.expand_as(qs)).sum(2)
 
     def update_target_net(self):
         for i in range(self.target_net.get_ens_size()):
