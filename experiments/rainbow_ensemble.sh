@@ -10,4 +10,4 @@ python ../main.py --target-update 2000 \
                   --use-ensemble True \
                   --ens_size 5 \
                   --game enduro \
-                  --id ensemble_rainbow_enduro
+                  --id ensemble_rainbow_enduro_V2

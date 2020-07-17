@@ -211,6 +211,7 @@ class EnsembleAgent(Agent):
             self.online_net.parameters(), lr=args.learning_rate, eps=args.adam_eps)
 
         self.use_BALD = args.use_BALD
+        self.use_random = args.use_random
 
     def learn(self, mem):
         samples = mem.sample(self.batch_size)
@@ -230,11 +231,14 @@ class EnsembleAgent(Agent):
         self.optimiser.step()
 
         # Update priorities of sampled transitions
-        if self.use_BALD:
+        if self.use_random:
+            rand_loss = torch.rand(loss.shape)
+            mem.update_priorities(idxs, rand_loss.detach().cpu().numpy())
+        elif self.use_BALD:
             with torch.no_grad():
                 qs = [self.q_value_batch(states, self.online_net.get_model(
                     i)) for i in range(self.online_net.get_ens_size())]
-            BALD_value = torch.abs(ens_BALD(qs) + 1)
+            BALD_value = torch.abs(ens_BALD(qs) + 0.1)
             mem.update_priorities(idxs, BALD_value.detach().cpu().numpy())
         else:
             mem.update_priorities(idxs, loss.detach().cpu().numpy())

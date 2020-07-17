@@ -8,4 +8,4 @@ python ../main.py --target-update 2000 \
                   --learning-rate 0.0001 \
                   --evaluation-interval 10000 \
                   --game enduro \
-                  --id standard_rainbow_enduro
+                  --id standard_rainbow_enduro_V2

@@ -11,4 +11,4 @@ python ../main.py --target-update 2000 \
                   --use_BALD True \
                   --ens_size 5 \
                   --game enduro \
-                  --id ensemble_rainbow_enduro_BALD
+                  --id ensemble_rainbow_enduro_BALD_V2
